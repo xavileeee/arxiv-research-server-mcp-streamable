@@ -1,43 +1,91 @@
-# Arxiv Research Server MCP
+# ArXiv Research Server (MCP Streamable HTTP)
 
-## Create a venv and install the requirements
+Servidor MCP local para buscar papers en arXiv y consultar la informacion guardada.
 
-Install uv if you haven't done so yet:
+## Requisitos
 
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-````
+- Python 3.10+
+- uv
+- Node.js (para usar MCP Inspector)
 
-In Windows:
+## Instalacion
 
 ```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
-
-Or you can also install uv via pip:
-
-```bash
-pip install uv
-```
-
-```bash
 uv venv
-source .venv/bin/activate # or  .venv\Scripts\activate in Windows
+.venv\Scripts\activate
 uv pip install -r requirements.txt
-````
+```
 
-You can use `.vscode/mcp.json` file as an example to know how to install the server.
+## Ejecutar el servidor MCP
 
-## Available Tools
+El servidor se expone por HTTP en:
 
-### Tools
-- `search_papers(topic: str, max_results: int = 5)`: Search for papers on arXiv based on a topic and store their information.
-- `extract_info(paper_id: str)`: Search for information about a specific paper across all topic directories.
+- `http://localhost:8001/mcp`
 
-### Resources
-- `papers://folders` → `get_available_folders()`: List all available topic folders in the papers directory.
-- `papers://{topic}` → `get_topic_papers(topic: str)`: Get detailed information about papers on a specific topic.
+Arranque recomendado:
 
-### Prompts
-- `generate_search_prompt(topic: str, num_papers: int = 5)`: Generate a prompt to find and discuss academic papers on a specific topic.
+```powershell
+uv run main.py
+```
 
+Alternativa equivalente:
+
+```powershell
+uv run research_server.py
+```
+
+## Probar con MCP Inspector
+
+Importante: inicia el Inspector con parametros explicitos para que no intente levantar un servidor de ejemplo (`mcp-server-everything`) y falle con `ENOENT`.
+
+```powershell
+npx @modelcontextprotocol/inspector --transport http --server-url http://localhost:8001/mcp
+```
+
+Luego abre la URL que imprime en consola (normalmente en `http://localhost:6274/?MCP_PROXY_AUTH_TOKEN=...`).
+
+En la UI del Inspector verifica:
+
+- Transport Type: `Streamable HTTP`
+- URL: `http://localhost:8001/mcp`
+- Connection Type: `Direct`
+
+Pulsa `Connect`.
+
+## Configuracion en VS Code (MCP)
+
+Este proyecto ya usa configuracion HTTP en `.vscode/mcp.json`:
+
+```json
+{
+      "servers": {
+            "research_server_streamable": {
+                  "url": "http://localhost:8001/mcp",
+                  "type": "http"
+            }
+      },
+      "inputs": []
+}
+```
+
+## Herramientas MCP disponibles
+
+- `search_papers(topic, max_results=5)`: busca papers en arXiv y guarda metadata en `papers/<topic>/papers_info.json`.
+- `extract_info(paper_id)`: recupera la informacion de un paper guardado.
+
+## Troubleshooting rapido
+
+### Error de puerto ocupado (WinError 10048)
+
+Significa que ya hay otro proceso en el puerto 8001.
+
+```powershell
+Get-NetTCPConnection -LocalPort 8001 | Select-Object OwningProcess, State
+Stop-Process -Id <PID> -Force
+```
+
+### El Inspector muestra Connection Error
+
+- Confirma que el servidor esta corriendo en otra terminal.
+- Confirma URL exacta: `http://localhost:8001/mcp`.
+- Si hay instancias viejas del Inspector, cierra procesos Node y relanzalo con el comando con `--transport http --server-url ...`.
